@@ -1,54 +1,48 @@
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
+import org.jgrapht.nio.AttributeType;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 public class HollywoodGraphBuilder {
 
-    static class Movie {
-        String title;
-        List<String> cast;
-    }
-
     public static Graph<String, DefaultEdge> genererGraphe(String cheminFichier) throws IOException {
         Graph<String, DefaultEdge> graphe = new SimpleGraph<>(DefaultEdge.class);
-        Gson gson = new Gson();
-
         BufferedReader reader = new BufferedReader(new FileReader(cheminFichier));
         String ligne;
 
         while ((ligne = reader.readLine()) != null) {
-            JsonElement elem = JsonParser.parseString(ligne);
-            Movie film = gson.fromJson(elem, Movie.class);
+            JsonElement film = JsonParser.parseString(ligne);
 
-            if (film.cast != null) {
+            if (film.getAsJsonObject().has("cast")) {
                 List<String> noms = new ArrayList<>();
 
-                for (String brut : film.cast) {
+                for (JsonElement acteur : film.getAsJsonObject().getAsJsonArray("cast")) {
+                    String brut = acteur.getAsString();
                     String nom = brut.replaceAll("\\[\\[|\\]\\]", "");
                     if (nom.contains("|")) {
-                        nom = nom.split("\\|")[0];
+                        nom = nom.split("\\|")[1];
                     }
                     nom = nom.trim();
+
                     graphe.addVertex(nom);
                     noms.add(nom);
                 }
 
-                for (String a1 : noms) {
-                    for (String a2 : noms) {
-                        if (!a1.equals(a2)) {
-                            graphe.addEdge(a1, a2);
+                for (int i = 0; i < noms.size(); i++) {
+                    for (int j = i + 1; j < noms.size(); j++) {
+                        if (!noms.get(i).equals(noms.get(j))) {
+                            graphe.addEdge(noms.get(i), noms.get(j));
                         }
                     }
                 }
+                
             }
         }
 
@@ -56,13 +50,26 @@ public class HollywoodGraphBuilder {
         return graphe;
     }
 
+    public static void exporterDot(Graph<String, DefaultEdge> graph, String chemin) throws IOException {
+        DOTExporter<String, DefaultEdge> exporter = new DOTExporter<>();
+        exporter.setVertexAttributeProvider(nom ->
+                Map.of("label", new DefaultAttribute<>(nom, AttributeType.STRING)));
+
+        try (Writer writer = new FileWriter(chemin)) {
+            exporter.exportGraph(graph, writer);
+        }
+    }
+
     public static void main(String[] args) {
         try {
-            Graph<String, DefaultEdge> graph = genererGraphe("data/data_100.txt");
+            Graph<String, DefaultEdge> graph = genererGraphe("data/data_1.txt");
             System.out.println("Nombre d'acteurs : " + graph.vertexSet().size());
             System.out.println("Nombre de collaborations : " + graph.edgeSet().size());
+
+            exporterDot(graph, "graph.dot");
+            System.out.println("Graphe exporté avec succès dans graph.dot");
         } catch (IOException e) {
-            System.out.println("Erreur lors de la lecture du fichier : " + e.getMessage());
+            System.out.println("Erreur : " + e.getMessage());
         }
     }
 }
