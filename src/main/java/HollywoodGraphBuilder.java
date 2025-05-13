@@ -4,65 +4,75 @@ import com.google.gson.JsonParser;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
+import org.jgrapht.nio.AttributeType;
+import org.jgrapht.nio.DefaultAttribute;
+import org.jgrapht.nio.dot.DOTExporter;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 public class HollywoodGraphBuilder {
 
-    static class Movie {
-        String title;
-        List<String> cast;
-    }
+static class Film {
+    String title;
+    List<String> cast;
+}
 
-    public static Graph<String, DefaultEdge> genererGraphe(String cheminFichier) throws IOException {
-        Graph<String, DefaultEdge> graphe = new SimpleGraph<>(DefaultEdge.class);
-        Gson gson = new Gson();
+public static Graph<String, DefaultEdge> creerGraphe(String cheminFichier) throws IOException {
+Graph<String, DefaultEdge> g = new SimpleGraph<>(DefaultEdge.class);
+BufferedReader f = new BufferedReader(new FileReader(cheminFichier));
+String ligne;
+Gson gson = new Gson();
 
-        BufferedReader reader = new BufferedReader(new FileReader(cheminFichier));
-        String ligne;
+while((ligne = f.readLine()) != null){
+    JsonElement filmJson = JsonParser.parseString(ligne);
+    Film film = gson.fromJson(filmJson, Film.class);
 
-        while ((ligne = reader.readLine()) != null) {
-            JsonElement elem = JsonParser.parseString(ligne);
-            Movie film = gson.fromJson(elem, Movie.class);
+    if(film.cast != null){
+        List<String> noms = new ArrayList<>();
+        for(String a : film.cast){
+            String nom = a.replaceAll("\\[\\[|\\]\\]", "");
+            if(nom.contains("|")){
+            nom = nom.split("\\|")[0];
+            }
+            nom = nom.trim();
+            g.addVertex(nom);
+            noms.add(nom);
+        }
 
-            if (film.cast != null) {
-                List<String> noms = new ArrayList<>();
-
-                for (String brut : film.cast) {
-                    String nom = brut.replaceAll("\\[\\[|\\]\\]", "");
-                    if (nom.contains("|")) {
-                        nom = nom.split("\\|")[0];
-                    }
-                    nom = nom.trim();
-                    graphe.addVertex(nom);
-                    noms.add(nom);
-                }
-
-                for (String a1 : noms) {
-                    for (String a2 : noms) {
-                        if (!a1.equals(a2)) {
-                            graphe.addEdge(a1, a2);
-                        }
-                    }
+        // relier tous les acteurs entre eux
+        for (int i = 0; i < noms.size(); i++) {
+            for (int j = 0; j < noms.size(); j++) {
+                if (!noms.get(i).equals(noms.get(j))) {
+                    g.addEdge(noms.get(i), noms.get(j));
                 }
             }
         }
-
-        reader.close();
-        return graphe;
     }
+}
+    f.close();
+    return g;
+}
 
-    public static void main(String[] args) {
-        try {
-            Graph<String, DefaultEdge> graph = genererGraphe("data/data_100.txt");
-            System.out.println("Nombre d'acteurs : " + graph.vertexSet().size());
-            System.out.println("Nombre de collaborations : " + graph.edgeSet().size());
-        } catch (IOException e) {
-            System.out.println("Erreur lors de la lecture du fichier : " + e.getMessage());
-        }
+// aider du TP1
+public static void exportGraph(Graph<String, DefaultEdge> graph, String chemin) throws IOException {
+		DOTExporter<String, DefaultEdge> exporter = new DOTExporter<String, DefaultEdge>();
+		exporter.setVertexAttributeProvider((x) -> Map.of("label", new DefaultAttribute<>(x, AttributeType.STRING)));
+		exporter.exportGraph(graph, new FileWriter("graph.dot"));
+	}
+
+
+public static void main(String[] args) {
+    try {
+        Graph<String, DefaultEdge> graphe = creerGraphe("data/data_2.txt");
+        System.out.println("Nb acteurs: " + graphe.vertexSet().size());
+        System.out.println("Nb liens: " + graphe.edgeSet().size());
+
+        exportGraph(graphe, "graph.dot");
+        System.out.println("fichier DOT fait");
+
+    } catch (Exception e) { // j’ai mis Exception mais normalement c’est IOException je crois
+        System.out.println("erreur : " + e);
     }
+}
 }
