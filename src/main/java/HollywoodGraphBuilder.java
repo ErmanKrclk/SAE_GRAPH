@@ -2,6 +2,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.jgrapht.Graph;
+import org.jgrapht.Graphs;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 import org.jgrapht.nio.AttributeType;
@@ -61,18 +62,39 @@ public static void exportGraph(Graph<String, DefaultEdge> graph, String chemin) 
 		exporter.exportGraph(graph, new FileWriter("graph.dot"));
 	}
 
+public static Set<String> collaborateursCommuns(Graph<String, DefaultEdge> graphe, String acteur1, String acteur2) {
+    Set<String> voisins1 = Graphs.neighborSetOf(graphe, acteur1);
+    Set<String> voisins2 = Graphs.neighborSetOf(graphe, acteur2);
+
+    Set<String> communs = new HashSet<>(voisins1);
+    communs.retainAll(voisins2);
+    return communs;
+}
 
 public static void main(String[] args) {
     try {
-        Graph<String, DefaultEdge> graphe = creerGraphe("data/data_2.txt");
+        Graph<String, DefaultEdge> graphe = creerGraphe("data/data_100.txt");
         System.out.println("Nb acteurs: " + graphe.vertexSet().size());
         System.out.println("Nb liens: " + graphe.edgeSet().size());
 
         exportGraph(graphe, "graph.dot");
         System.out.println("fichier DOT fait");
 
-    } catch (Exception e) { // j’ai mis Exception mais normalement c’est IOException je crois
+        Set<String> communs = collaborateursCommuns(graphe, "Tom Hanks", "Meg Ryan");
+
+        System.out.println("Collaborateurs communs entre Tom Hanks et Meg Ryan :");
+        if (communs.isEmpty()) {
+            System.out.println("Aucun collaborateur commun trouvé.");
+        } else {
+            for (String nom : communs) {
+                System.out.println(" - " + nom);
+            }
+        }
+
+    } catch (Exception e) { 
         System.out.println("erreur : " + e);
     }
 }
+
+
 }
